@@ -81,41 +81,25 @@
       </v-card>
     </v-dialog>
     <v-dialog v-model="showProductoModal" persistent max-width="600px">
-      <v-card>
-        <v-card-title>
-          Nuevo Producto
-          <v-spacer></v-spacer>
-          <v-btn icon @click="showProductoModal = false">
-            <v-icon>mdi-close</v-icon>
-          </v-btn>
-        </v-card-title>
-
-        <v-card-text>
-          
-            <v-text-field label="Nombre del Producto" v-model="newProducto.name" :rules="[rules.required]">
-            </v-text-field>
-            <v-select :items="typesS" item-text="name" item-value="id" label="Seleccionar Tipo" v-model="newProducto.typeId">
-              
-            </v-select>
-            <v-select :items="contenedores" item-text="name" item-value="id" label="Seleccionar Contenedor"
-              v-model="newProducto.contenedorId">
-            </v-select>
-            <v-text-field type="number" label="Unidades" v-model="newProducto.unidades"
-              :rules="[rules.required, rules.counter]">
-            </v-text-field>
-            <v-btn color="primary" @click="addProducto">Agregar</v-btn>
-          
-        </v-card-text>
-      </v-card>
+      <product-form
+        :types="types"
+        :containers="containers"
+        @add-product="addProduct"
+        @close="showProductoModal = false"
+      ></product-form>
     </v-dialog>
+  
   </v-app>
 </template>
 
 <script>
 import { db } from './firebase'; // Asegúrate de que la ruta es correcta
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-
+import ProductForm from './components/ProductForm.vue';
 export default {
+  components: {
+    ProductForm
+  },
   name: 'Home',
   data: () => ({
     showModal: false,
@@ -124,7 +108,7 @@ export default {
     newType: '',
     //typeId:'',
     types: [],
-    typesS: [],
+    typeNames: [],
     newContenedor: { name: '', description: '' },
     newProducto: {
       name: '',
@@ -142,30 +126,21 @@ export default {
   }),
 
   async created() {
-   // await this.fetchTypes();
+     await this.fetchTypes();
     await this.fetchContenedores();
   },
-  beforeMount() {
-    this.fetchTypes();
-    this.fetchContenedores();
-  },
+  
   computed: {
 
   },
   methods: {
-    async fetchTypes() {
+     async fetchTypes() {
       const querySnapshot = await getDocs(collection(db, "types"));
-      debugger
       this.types = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      // this.types.forEach(el=>{
-      //   this.typesS.push({
-      //     id:el.id,
-      //     name:el.name
-      //   })
-      // });
-      this.typesS.push({ id: 'DfSsynIO3eARDRpHrYN7', name: 'Patatas con queso' });
-      console.log(this.typesS);
+      
+      // Crear una lista solo con los nombres de los tipos
+      this.typeNames = this.types.map(type => type.name);
+      console.log("Types loaded:", this.types);
     },
     async addType() {
       if (this.newType) {
@@ -202,6 +177,7 @@ export default {
     async fetchContenedores() {
       const querySnapshot = await getDocs(collection(db, "contenedores"));
       this.contenedores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log("Contenedores loaded:", this.contenedores);
     },
     async addContenedor() {
       if (this.newContenedor.name && this.newContenedor.description) {
