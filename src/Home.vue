@@ -3,6 +3,7 @@
     <v-app-bar app>
       <v-toolbar-title>Título de la App</v-toolbar-title>
       <v-spacer></v-spacer>
+      <v-btn color="primary" @click="showCompraModal = true">Compra</v-btn>
       <v-btn color="primary" @click="showModal = true">Tipos</v-btn>
       <v-btn color="secondary" @click="showContenedorModal = true">Contenedores</v-btn>
       <v-btn color="success" @click="showProductoModal = true">Productos</v-btn>
@@ -11,14 +12,25 @@
 
     <v-main>
       <v-container>
-        <p>Este es el contenido de la página con el menú arriba.</p>
         <v-row>
           <v-col cols="12" sm="6" md="4" v-for="(contenedor, index) in contenedores" :key="index">
             <v-card>
               <v-card-title>{{ contenedor.name }}</v-card-title>
-              <v-card-text>{{ contenedor.description }}</v-card-text>
+              <v-card-text>
+                {{ contenedor.description }}
+                <v-list dense>
+                  <v-list-item
+                    v-for="(producto, idx) in productos.filter(p => p.contenedor === contenedor.name && p.unidades > 0)"
+                    :key="idx" @click="openEditUnitsModal(producto)">
+                    <v-list-item-content>
+                      {{ producto.name }} - Unidades: {{ producto.unidades }}
+                    </v-list-item-content>
+                  </v-list-item>
+                </v-list>
+              </v-card-text>
             </v-card>
           </v-col>
+
         </v-row>
       </v-container>
     </v-main>
@@ -81,14 +93,56 @@
       </v-card>
     </v-dialog>
     <v-dialog v-model="showProductoModal" persistent max-width="600px">
-      <product-form
-        :types="types"
-        :containers="containers"
-        @add-product="addProduct"
-        @close="showProductoModal = false"
-      ></product-form>
+      <product-form :types="types" :containers="containers" @close="showProductoModal = false"></product-form>
     </v-dialog>
-  
+    <v-dialog v-model="editUnitsDialog" persistent max-width="300px">
+      <v-card>
+        <v-card-title>
+          Editar Unidades
+          <v-spacer></v-spacer>
+          <v-btn icon @click="editUnitsDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-form>
+            <v-text-field type="number" label="Unidades" v-model="editProduct.unidades"
+              :rules="[rules.counter]"></v-text-field>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn color="primary" @click="updateProductUnits()">Actualizar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="showCompraModal" persistent max-width="800px">
+  <v-card>
+    <v-card-title>
+      Compra de Productos
+      <v-spacer></v-spacer>
+      <v-btn icon @click="showCompraModal = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-card-title>
+    <v-card-text>
+      <v-list dense>
+        <v-list-item-group>
+          <v-list-item 
+            v-for="producto in productosConCeroUnidades" 
+            :key="producto.id"
+            @click="openEditUnitsModal(producto)"
+          >
+            <v-list-item-content>
+              <v-list-item-title>{{ producto.name }}</v-list-item-title>
+              <v-list-item-subtitle>Tipo: {{ producto.type }}, Unidades: {{ producto.unidades }}</v-list-item-subtitle>
+            </v-list-item-content>
+          </v-list-item>
+        </v-list-item-group>
+      </v-list>
+    </v-card-text>
+  </v-card>
+</v-dialog>
+
   </v-app>
 </template>
 
@@ -102,6 +156,10 @@ export default {
   },
   name: 'Home',
   data: () => ({
+    showCompraModal: false,
+    editUnitsDialog: false,
+    editProduct: {},
+    productos: [],
     showModal: false,
     showContenedorModal: false,
     showProductoModal: false,
@@ -126,18 +184,31 @@ export default {
   }),
 
   async created() {
-     await this.fetchTypes();
+    await this.fetchTypes();
     await this.fetchContenedores();
+    await this.fetchProductos();
   },
-  
-  computed: {
 
+  computed: {
+    productosConCeroUnidades() {
+      console.log("Productos antes del filtro:", this.productos);
+    const filteredProducts = this.productos.filter(p => Number(p.unidades) === 0);
+    console.log("Productos después del filtro:", filteredProducts);
+    
+    // Filtrar productos con cero unidades y ordenar por tipo
+    return filteredProducts// Asumiendo que typeId es un string descriptivo
+  }
   },
   methods: {
-     async fetchTypes() {
+    async fetchProductos() {
+      const querySnapshot = await getDocs(collection(db, "productos"));
+      this.productos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log(this.productos);
+    },
+    async fetchTypes() {
       const querySnapshot = await getDocs(collection(db, "types"));
       this.types = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
+
       // Crear una lista solo con los nombres de los tipos
       this.typeNames = this.types.map(type => type.name);
       console.log("Types loaded:", this.types);
@@ -190,24 +261,17 @@ export default {
         await this.fetchContenedores(); // Recarga los contenedores desde Firestore
       }
     },
-    //productos
-    async addProducto() {
-      if (this.newProducto.name && this.newProducto.typeId && this.newProducto.contenedorId && this.newProducto.unidades > 0) {
-        // Asegúrate de incluir el nombre en el objeto que envías a Firestore
-        await addDoc(collection(db, "productos"), {
-          name: this.newProducto.name,
-          typeId: this.newProducto.typeId,
-          contenedorId: this.newProducto.contenedorId,
-          unidades: this.newProducto.unidades
-        });
-        this.resetNewProducto(); // Reinicia el formulario y cierra el modal
-      }
+    openEditUnitsModal(producto) {
+      this.editProduct = { ...producto };
+      this.editUnitsDialog = true;
     },
-    resetNewProducto() {
-      // Reinicia newProducto a su estado inicial
-      this.newProducto = { name: '', typeId: '', contenedorId: '', unidades: 0 };
-      this.showProductoModal = false; // Opcional: Cierra el modal
+    async updateProductUnits() {
+      const productRef = doc(db, "productos", this.editProduct.id);
+      await updateDoc(productRef, { unidades: this.editProduct.unidades });
+      this.editUnitsDialog = false;
+      await this.fetchProductos(); // Actualizar lista de productos
     },
+
   },
 };
 </script>
