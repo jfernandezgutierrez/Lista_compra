@@ -1,13 +1,13 @@
 // src/router/index.js
 
 import { createRouter, createWebHistory } from 'vue-router';
-import Login from '../Inicio.vue';
+import Inicio from '../Inicio.vue';
 import Home from '../Home.vue'
 import { auth } from '../firebase';
 
 const routes = [
   {
-    path: '/',
+    path: '/home',
     name: 'Home',
     component: Home,
     meta: {
@@ -15,9 +15,9 @@ const routes = [
     }
   },
   {
-    path: '/login',
-    name: 'Login',
-    component: Login
+    path: '/',
+    name: 'Inicio',
+    component: Inicio
   }
 ]
 
