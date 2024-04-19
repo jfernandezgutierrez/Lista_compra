@@ -25,7 +25,7 @@
       Lista de Productos
       <v-text-field v-model="search" append-icon="mdi-magnify" label="Buscar" single-line hide-details></v-text-field>
     </v-card-title>
-    <v-card-text>
+    <v-card-text style="height: 300px; overflow-y: auto;">
       <v-list>
         <v-list-item-group>
           <v-list-item v-for="(item, index) in filteredProducts" :key="index">
