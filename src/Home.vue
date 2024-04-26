@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-app-bar app>
-      <v-toolbar-title>Lista de compra</v-toolbar-title>
+      <v-toolbar-title>Lista de compra Bienvenido, {{ userInfo.displayName }}</v-toolbar-title>
       <v-spacer></v-spacer>
       
       <!-- Menu Desplegable -->
@@ -195,6 +195,7 @@
 </template>
 
 <script>
+import { useUser } from '@/composables/useUser';
 import { db } from './firebase'; // Asegúrate de que la ruta es correcta
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { query, where, writeBatch } from 'firebase/firestore';
@@ -205,7 +206,14 @@ export default {
     ProductForm
   },
   name: 'Home',
+  props: {
+    userInfo: {
+      type: Object,
+      required: true
+    }
+  },
   data: () => ({
+    user:null,
     showCompraModal: false,
     editUnitsDialog: false,
     editProduct: {},
